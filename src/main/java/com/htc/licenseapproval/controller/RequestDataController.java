@@ -19,6 +19,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.htc.licenseapproval.dto.BUResponseDTO;
 import com.htc.licenseapproval.dto.CoursesDTO;
 import com.htc.licenseapproval.dto.NewRequestListDTO;
 import com.htc.licenseapproval.dto.RequestDetailsDTO;
@@ -90,84 +91,6 @@ public class RequestDataController {
 
 		return ResponseEntity.ok(response);
 	}
-
-	// REPORTS CONTAINS ONLY CONSUMED LICENSE (Except PENDING)
-
-	@Operation(summary = "Get quarterly report", description = "Returns license request count per quarter")
-	@GetMapping("/report/quarterlyReport")
-	public ResponseEntity<BaseResponse<Map<Month, ResponseDTO<List<RequestResponseDTO>>>>> quarterlyReport(
-			@RequestParam LicenseType licenseType) {
-		Map<Month, ResponseDTO<List<RequestResponseDTO>>> map = new EnumMap<>(Month.class);
-
-		Map<Month, List<RequestResponseDTO>> report = requestListService.quarterlyReport(licenseType);
-		for (Month key : report.keySet()) {
-			ResponseDTO<List<RequestResponseDTO>> responseDTO = new ResponseDTO<>();
-			responseDTO.setData(report.get(key));
-			responseDTO.setCount(report.get(key).size());
-
-			map.put(key, responseDTO);
-
-		}
-
-		BaseResponse<Map<Month, ResponseDTO<List<RequestResponseDTO>>>> response = new BaseResponse<>();
-		response.setMessage(" Quarterly report fetched successfully ");
-		response.setData(map);
-		response.setCode(HttpStatus.OK.value());
-
-		return new ResponseEntity<>(response, HttpStatus.OK);
-	}
-
-	// REPORTS CONTAINS ONLY CONSUMED LICENSE (Except PENDING)
-
-	@Operation(summary = "Get quarterly report by BU", description = "Returns license request count per quarter")
-	@GetMapping("/report/quarterlyReport/byBU")
-	public ResponseEntity<BaseResponse<Map<Month, ResponseDTO<List<RequestResponseDTO>>>>> quarterlyReportByBU(
-			@RequestParam String Bu, @RequestParam LicenseType licenseType) {
-
-		Map<Month, ResponseDTO<List<RequestResponseDTO>>> map1 = new EnumMap<>(Month.class);
-
-		Map<Month, List<RequestResponseDTO>> report = requestListService.quarterlyReportBYBU(Bu, licenseType);
-		for (Month key : report.keySet()) {
-			ResponseDTO<List<RequestResponseDTO>> responseDTO = new ResponseDTO<>();
-			responseDTO.setData(report.get(key));
-			responseDTO.setCount(report.get(key).size());
-
-			map1.put(key, responseDTO);
-
-		}
-		BaseResponse<Map<Month, ResponseDTO<List<RequestResponseDTO>>>> response = new BaseResponse<>();
-		response.setMessage("Quarterly report by BU fetched successfully ");
-		response.setData(map1);
-		response.setCode(HttpStatus.OK.value());
-
-		return new ResponseEntity<>(response, HttpStatus.OK);
-	}
-
-	// REPORTS CONTAINS ONLY CONSUMED LICENSE (Except PENDING)
-	@Operation(summary = "Get annual report", description = "Returns license request count per month for a year")
-	@GetMapping("/report/annualReport")
-	public ResponseEntity<BaseResponse<Map<Month, ResponseDTO<List<RequestResponseDTO>>>>> annualReport(
-			@RequestParam LicenseType licenseType) {
-
-		Map<Month, ResponseDTO<List<RequestResponseDTO>>> map = new EnumMap<>(Month.class);
-
-		Map<Month, List<RequestResponseDTO>> report = requestListService.annualReport(licenseType);
-		for (Month key : report.keySet()) {
-			ResponseDTO<List<RequestResponseDTO>> responseDTO = new ResponseDTO<>();
-			responseDTO.setData(report.get(key));
-			responseDTO.setCount(report.get(key).size());
-
-			map.put(key, responseDTO);
-
-		}
-		BaseResponse<Map<Month, ResponseDTO<List<RequestResponseDTO>>>> response = new BaseResponse<>();
-		response.setMessage("Annual report fetched successfully ");
-		response.setData(map);
-		response.setCode(HttpStatus.OK.value());
-		return new ResponseEntity<>(response, HttpStatus.OK);
-
-	}
-
 	@Operation(summary = "Get requests by employee", description = "Fetches requests made by a specific employee")
 	@GetMapping(value = "/getallrequests/{empID}")
 	public ResponseEntity<BaseResponse<ResponseDTO<List<RequestResponseDTO>>>> getAllRequestListByEmployee(
@@ -276,10 +199,10 @@ public class RequestDataController {
 
 	@Operation(summary = "Get requests by Business Unit ---", description = "Fetches all license requests with the business unit")
 	@GetMapping("/getall/byBU/{BUname}")
-	public ResponseEntity<BaseResponse<ResponseDTO<List<RequestResponseDTO>>>> getAllRequestByBU(
+	public ResponseEntity<BaseResponse<BUResponseDTO<List<RequestResponseDTO>>>> getAllRequestByBU(
 			@RequestParam LicenseType licenseType, @PathVariable String BUname) throws IOException {
 
-		BaseResponse<ResponseDTO<List<RequestResponseDTO>>> response = new BaseResponse<>();
+		BaseResponse<BUResponseDTO<List<RequestResponseDTO>>> response = new BaseResponse<>();
 		response.setMessage("All Requets per Business unit " + BUname);
 		response.setData(requestListService.totalRequestPerBU(BUname, licenseType));
 		response.setCode(HttpStatus.OK.value());
@@ -300,50 +223,133 @@ public class RequestDataController {
 
 	}
 
-	@GetMapping("/report/quartertlyReport/perBu")
-	public ResponseEntity<Map<Month, Map<String, ResponseDTO<List<RequestDetailsDTO>>>>> quartertlyReportperBu(
-			LicenseType licenseType) {
 
-		Map<Month, Map<String, ResponseDTO<List<RequestDetailsDTO>>>> map1 = new EnumMap<>(Month.class);
-
-		Map<Month, Map<String, List<RequestDetailsDTO>>> report = requestListService.quarterlyReportPerBU(licenseType);
-
-		for (Month key : report.keySet()) {
-
-			Map<String, ResponseDTO<List<RequestDetailsDTO>>> newMap = new HashMap<>();
-
-			for (String bu : report.get(key).keySet()) {
-
-				ResponseDTO<List<RequestDetailsDTO>> responseDTO = new ResponseDTO<>();
-
-				responseDTO.setData(report.get(key).get(bu));
-
-				responseDTO.setCount(report.get(key).get(bu).size());
-
-				newMap.put(bu, responseDTO);
-
-			}
-
-			map1.put(key, newMap);
-
-		}
-
-		return ResponseEntity.ok(map1);
-
-	}
-
-	// not used
-	@Operation(summary = "Overall Report By emp id -- unuses")
-	@GetMapping(value = "/report/overallReport")
-	public ResponseEntity<Map<Long, List<RequestDetailsDTO>>> overallReport() {
-		return ResponseEntity.ok(requestDetailsService.totalReport());
-	}
-	
-	@Operation(summary = "Overall Report for all Bu")
-	@GetMapping(value = "/report/overallReport/perBUbyMap")
-	public ResponseEntity<Map<String, ResponseDTO<List<RequestResponseDTO>>>> BuMapForTotalRequest(@RequestParam LicenseType licenseType) {
-		return ResponseEntity.ok(requestListService.totalRequestForAllBUs(licenseType));
-	}
+//	// REPORTS CONTAINS ONLY CONSUMED LICENSE (Except PENDING)
+//
+//	@Operation(summary = "Get quarterly report", description = "Returns license request count per quarter")
+//	@GetMapping("/report/quarterlyReport")
+//	public ResponseEntity<BaseResponse<Map<Month, ResponseDTO<List<RequestResponseDTO>>>>> quarterlyReport(
+//			@RequestParam LicenseType licenseType) {
+//		Map<Month, ResponseDTO<List<RequestResponseDTO>>> map = new EnumMap<>(Month.class);
+//
+//		Map<Month, List<RequestResponseDTO>> report = requestListService.quarterlyReport(licenseType);
+//		for (Month key : report.keySet()) {
+//			ResponseDTO<List<RequestResponseDTO>> responseDTO = new ResponseDTO<>();
+//			responseDTO.setData(report.get(key));
+//			responseDTO.setCount(report.get(key).size());
+//
+//			map.put(key, responseDTO);
+//
+//		}
+//
+//		BaseResponse<Map<Month, ResponseDTO<List<RequestResponseDTO>>>> response = new BaseResponse<>();
+//		response.setMessage(" Quarterly report fetched successfully ");
+//		response.setData(map);
+//		response.setCode(HttpStatus.OK.value());
+//
+//		return new ResponseEntity<>(response, HttpStatus.OK);
+//	}
+//
+//	// REPORTS CONTAINS ONLY CONSUMED LICENSE (Except PENDING)
+//
+//	@Operation(summary = "Get quarterly report by BU", description = "Returns license request count per quarter")
+//	@GetMapping("/report/quarterlyReport/byBU")
+//	public ResponseEntity<BaseResponse<Map<Month, ResponseDTO<List<RequestResponseDTO>>>>> quarterlyReportByBU(
+//			@RequestParam String Bu, @RequestParam LicenseType licenseType) {
+//
+//		Map<Month, ResponseDTO<List<RequestResponseDTO>>> map1 = new EnumMap<>(Month.class);
+//
+//		Map<Month, List<RequestResponseDTO>> report = requestListService.quarterlyReportBYBU(Bu, licenseType);
+//		for (Month key : report.keySet()) {
+//			ResponseDTO<List<RequestResponseDTO>> responseDTO = new ResponseDTO<>();
+//			responseDTO.setData(report.get(key));
+//			responseDTO.setCount(report.get(key).size());
+//
+//			map1.put(key, responseDTO);
+//
+//		}
+//		BaseResponse<Map<Month, ResponseDTO<List<RequestResponseDTO>>>> response = new BaseResponse<>();
+//		response.setMessage("Quarterly report by BU fetched successfully ");
+//		response.setData(map1);
+//		response.setCode(HttpStatus.OK.value());
+//
+//		return new ResponseEntity<>(response, HttpStatus.OK);
+//	}
+//
+//	// REPORTS CONTAINS ONLY CONSUMED LICENSE (Except PENDING)
+//	@Operation(summary = "Get annual report", description = "Returns license request count per month for a year")
+//	@GetMapping("/report/annualReport")
+//	public ResponseEntity<BaseResponse<Map<Month, ResponseDTO<List<RequestResponseDTO>>>>> annualReport(
+//			@RequestParam LicenseType licenseType) {
+//
+//		Map<Month, ResponseDTO<List<RequestResponseDTO>>> map = new EnumMap<>(Month.class);
+//
+//		Map<Month, List<RequestResponseDTO>> report = requestListService.annualReport(licenseType);
+//		for (Month key : report.keySet()) {
+//			ResponseDTO<List<RequestResponseDTO>> responseDTO = new ResponseDTO<>();
+//			responseDTO.setData(report.get(key));
+//			responseDTO.setCount(report.get(key).size());
+//
+//			map.put(key, responseDTO);
+//
+//		}
+//		BaseResponse<Map<Month, ResponseDTO<List<RequestResponseDTO>>>> response = new BaseResponse<>();
+//		response.setMessage("Annual report fetched successfully ");
+//		response.setData(map);
+//		response.setCode(HttpStatus.OK.value());
+//		return new ResponseEntity<>(response, HttpStatus.OK);
+//
+//	}
+//	@GetMapping("/report/quartertlyReport/perBu")
+//	public ResponseEntity<Map<Month, Map<String, ResponseDTO<List<RequestDetailsDTO>>>>> quartertlyReportperBu(
+//			LicenseType licenseType) {
+//
+//		Map<Month, Map<String, ResponseDTO<List<RequestDetailsDTO>>>> map1 = new EnumMap<>(Month.class);
+//
+//		Map<Month, Map<String, List<RequestDetailsDTO>>> report = requestListService.quarterlyReportPerBU(licenseType);
+//
+//		for (Month key : report.keySet()) {
+//
+//			Map<String, ResponseDTO<List<RequestDetailsDTO>>> newMap = new HashMap<>();
+//
+//			for (String bu : report.get(key).keySet()) {
+//
+//				ResponseDTO<List<RequestDetailsDTO>> responseDTO = new ResponseDTO<>();
+//
+//				responseDTO.setData(report.get(key).get(bu));
+//
+//				responseDTO.setCount(report.get(key).get(bu).size());
+//
+//				newMap.put(bu, responseDTO);
+//
+//			}
+//
+//			map1.put(key, newMap);
+//
+//		}
+//
+//		return ResponseEntity.ok(map1);
+//
+//	}
+//
+//	// not used
+//	@Operation(summary = "Overall Report By emp id -- unuses")
+//	@GetMapping(value = "/report/overallReport")
+//	public ResponseEntity<Map<Long, List<RequestDetailsDTO>>> overallReport() {
+//		return ResponseEntity.ok(requestDetailsService.totalReport());
+//	}
+//	
+//	@Operation(summary = "Overall Report for all Bu")
+//	@GetMapping(value = "/report/overallReport/perBUbyMap")
+//	public ResponseEntity<Map<String, ResponseDTO<List<RequestResponseDTO>>>> buMapForTotalRequest(@RequestParam LicenseType licenseType) {
+//		return ResponseEntity.ok(requestListService.totalRequestForAllBUs(licenseType));
+//	}
+//	
+//	@Operation(summary = "quarterly Report per quarter (Q1, Q2, Q3, Q4)")
+//	@GetMapping(value = "/report/quarterReport/perQuarter")
+//	public ResponseEntity<Map<Month, List<RequestResponseDTO>>> quarterReportPerQuarter(@RequestParam LicenseType licenseType,@RequestParam String quarter) {
+//		return ResponseEntity.ok(requestListService.quarterlyReportperQuater(licenseType, quarter));
+//	}
 
 
 }

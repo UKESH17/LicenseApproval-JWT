@@ -12,15 +12,22 @@ import io.swagger.v3.oas.models.security.SecurityRequirement;
 
 @Configuration
 @OpenAPIDefinition
-@SecurityScheme(name = "basicAuth", scheme = "basic", type = SecuritySchemeType.HTTP, in = SecuritySchemeIn.HEADER)
+@SecurityScheme(
+    name = "bearerAuth",
+    scheme = "bearer",
+    type = SecuritySchemeType.HTTP,
+    bearerFormat = "JWT",
+    in = SecuritySchemeIn.HEADER
+)
 public class SwaggerConfig {
 
-	@Bean
-	OpenAPI customOpenAPI() {
-		return new OpenAPI()
-				.info(new Info().title("License Aprroval Api").version("v1")
-						.description("Demo API - for license approval"))
-				.addSecurityItem(new SecurityRequirement().addList("basicAuth"));
-	}
-	
+    @Bean
+    public OpenAPI customOpenAPI() {
+        return new OpenAPI()
+            .info(new Info()
+                .title("License Approval API")
+                .version("v1")
+                .description("Demo API - for license approval"))
+            .addSecurityItem(new SecurityRequirement().addList("bearerAuth"));
+    }
 }

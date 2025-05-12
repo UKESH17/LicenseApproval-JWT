@@ -19,18 +19,37 @@ public class CustomIDGenerator implements Generator, IdentifierGenerator {
 	@Override
 	public Object generate(SharedSessionContractImplementor session, Object object) {
 		RequestDetails requestDetails = (RequestDetails) object;
-		String PREFIX = requestDetails.getLicenseDetails().getLicenseType().equals(LicenseType.PLURALS) ? "OEM-PLU-" : "OEM-LIN-";
-		String query = "SELECT COALESCE(MAX(CAST(SUBSTRING(request_id, 9) AS UNSIGNED)),0) + 1 FROM request_details "
-				+ "WHERE request_id LIKE ? ";
-		try {
-			Connection connection = session.getJdbcConnectionAccess().obtainConnection();
-			PreparedStatement ps = connection.prepareStatement(query);
-			ps.setString(1, PREFIX + "%");
+		LicenseType licenceType = requestDetails.getLicenseDetails().getLicenseType();
+		String PREFIX = licenceType.equals(LicenseType.PLURALS) ? "OEM-PLU-" : "OEM-LIN-";
+		String updateQuery = "UPDATE license_id_counter SET current_value = current_value + 1 WHERE license_type = ?";
+		String selectQuery = "SELECT current_value FROM license_id_counter WHERE license_type = ?";
+		try (Connection connection = session.getJdbcConnectionAccess().obtainConnection()) {
+			connection.setAutoCommit(false);
+			try (PreparedStatement updateStmt = connection.prepareStatement(updateQuery);
+					PreparedStatement selectStmt = connection.prepareStatement(selectQuery);) {
 
-			ResultSet resultSet = ps.executeQuery();
-			if (resultSet.next()) {
-				return PREFIX + resultSet.getInt(1);
+				updateStmt.setString(1, licenceType.toString());
+				updateStmt.executeUpdate();
+
+				selectStmt.setString(1, licenceType.toString());
+				ResultSet rs = selectStmt.executeQuery();
+
+				if (rs.next()) {
+					int id = rs.getInt("current_value");
+					connection.commit();
+					return PREFIX + id;
+				} else {
+					connection.rollback();
+					throw new RuntimeException("License type not found in counter table.");
+				}
+
+			} catch (Exception ex) {
+				connection.rollback();
+				throw ex;
+			} finally {
+				connection.setAutoCommit(true);
 			}
+
 		} catch (SQLException e) {
 			e.printStackTrace();
 		}

@@ -1,7 +1,9 @@
 package com.htc.licenseapproval.entity;
 
+import java.time.LocalDateTime;
 import java.util.Set;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.htc.licenseapproval.entity.idgenerator.HeaderId;
 import com.htc.licenseapproval.enums.RequestType;
@@ -55,6 +57,9 @@ public class RequestHeader extends BaseEntity{
 	
 	@OneToMany(mappedBy = "requestHeader", fetch = FetchType.EAGER)
 	private Set<RequestDetails> requestDetails;
+	
+	@JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
+	private LocalDateTime licenseRequiredDate;
 	
 
 }

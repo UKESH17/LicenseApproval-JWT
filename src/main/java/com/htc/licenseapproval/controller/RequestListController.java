@@ -65,43 +65,42 @@ public class RequestListController {
 	
 	@Autowired
 	private BUdetailsRepository buRepository;
-	
-	
-	
-	
+		
 	@Operation(summary = "Create new license request", description = "Submit a new license request with approval mail and optional Excel file")
 	@PostMapping(value = "/newRequest", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
 	public ResponseEntity<BaseResponse<RequestResponseDTO>> newRequest(
 			@RequestPart(value="JSON-body",required = true) String newRequestListJson,
 			@RequestPart(value ="approval-mail"
-			,required = true) MultipartFile approvalmail,
+			,required = false) MultipartFile approvalmail,
 			@RequestPart(value = "excel", required = false) MultipartFile excel) throws IOException {
 		
 		ObjectMapper objectMapper = new ObjectMapper();
 		NewRequestListDTO newRequestListDTO = objectMapper.readValue(newRequestListJson, NewRequestListDTO.class);
-		
+		System.out.println(approvalmail);
+		System.out.println( approvalmail != null);
+		if(approvalmail != null) {
 		String fileName = approvalmail.getOriginalFilename();
 		
-		if (fileName != null && !(fileName.endsWith(".pdf"))) {
-			
+		if (fileName != null && !(fileName.endsWith(".pdf"))) {	
 			BaseResponse<RequestResponseDTO> response = new BaseResponse<RequestResponseDTO>();
 			response.setMessage("Invalid file format! Please upload a PDF file (.pdf).");
 			response.setData(null);
 			response.setCode(HttpStatus.BAD_REQUEST.value());
-			return ResponseEntity.badRequest().body(response);
-			
+			return ResponseEntity.badRequest().body(response);	
 		}
-
+		
 		UploadedFile approvalMail = new UploadedFile();
-		approvalMail.setFileName(approvalmail.getOriginalFilename());
+		approvalMail.setFileName(fileName);
 		approvalMail.setFileType(approvalmail.getContentType());
 		approvalMail.setFileData(compressor.compress(approvalmail.getBytes()));
-
-		UploadedFile excelFile = new UploadedFile();
-
+		newRequestListDTO.setApprovalMail(approvalMail);
+		
+		}
+		
+		
 		if (newRequestListDTO.getRequestType().equals(RequestType.MULTIPLE) && excel != null) {
+			UploadedFile excelFile = new UploadedFile();
 			newRequestListDTO.setRequestDetails(excelService.readExcelAndProcess(excel));
-
 			excelFile.setFileName(excel.getOriginalFilename());
 			excelFile.setFileType(excel.getContentType());
 			excelFile.setFileData(compressor.compress(excel.getBytes()));
@@ -109,9 +108,9 @@ public class RequestListController {
 		}
 
 		BaseResponse<RequestResponseDTO> response = new BaseResponse<RequestResponseDTO>();
-		response.setMessage("Request successfully received and file uploaded successfully with name "
-				+ approvalmail.getOriginalFilename());
-		response.setData(requestListService.newRequestHeader(newRequestListDTO, approvalMail));
+		response.setMessage("Request successfully received "
+				+ (approvalmail!=null ? "and file uploaded successfully with name "+approvalmail.getOriginalFilename() : ""));
+		response.setData(requestListService.newRequestHeader(newRequestListDTO));
 		response.setCode(HttpStatus.CREATED.value());
 		
 		return new ResponseEntity<>(response, HttpStatus.CREATED);

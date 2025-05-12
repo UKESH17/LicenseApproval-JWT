@@ -36,13 +36,13 @@ public class GlobalException {
 		
 	}
 
-	@ExceptionHandler(RuntimeException.class)
-	public ResponseEntity<BaseResponse<String>> handleException(RuntimeException exc) {
-		BaseResponse<String> response = new BaseResponse<>();
-		response.setCode(HttpStatus.BAD_REQUEST.value());
-		response.setData("Request failed ->"+exc.getMessage());
-		response.setMessage("failed");
-		return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
-	}
+//	@ExceptionHandler(RuntimeException.class)
+//	public ResponseEntity<BaseResponse<String>> handleException(RuntimeException exc) {
+//		BaseResponse<String> response = new BaseResponse<>();
+//		response.setCode(HttpStatus.BAD_REQUEST.value());
+//		response.setData("Request failed ->"+exc.getMessage());
+//		response.setMessage("failed");
+//		return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
+//	}
 
 }

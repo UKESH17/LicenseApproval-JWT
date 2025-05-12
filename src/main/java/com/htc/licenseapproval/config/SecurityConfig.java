@@ -15,6 +15,7 @@ import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
@@ -29,6 +30,9 @@ public class SecurityConfig {
 	@Autowired
 	@Lazy
 	UserService userService;
+	
+	@Autowired
+	private AppFilter filter;
 
 	@Bean
     PasswordEncoder passwordEncoder() {
@@ -49,19 +53,18 @@ public class SecurityConfig {
 	        .csrf(csrf -> csrf.disable())
 	        .authorizeHttpRequests(auth -> auth
 	            .requestMatchers(
-	            		"/auth/**",
-	                "/auth/registerUser",
+	            	"/auth/registerUser",
 	                "/auth/login",
-	                "/auth/login/otpVerification",
 	                "/auth/forgotpassword",
-	                "/auth/changePassword/**",
-	                "/auth/logout"
+	                "/auth/changePassword/**"               
 	            ).permitAll()
-	            .requestMatchers("/auth/deleteUser").authenticated()
+	            .requestMatchers("/auth/deleteUser","/auth/login/otpVerification", "/auth/logout").authenticated()
 	            .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
 	            .anyRequest().permitAll()
 	        )
-	        .sessionManagement(sess -> sess.sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED))
+	        .authenticationProvider(authenticationProvider())
+			.addFilterBefore(filter, UsernamePasswordAuthenticationFilter.class)
+	        .sessionManagement(sess -> sess.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
 	        .cors(cors -> cors.configurationSource(corsConfigurationSource()));
 
 	    return http.build();
@@ -75,12 +78,10 @@ public class SecurityConfig {
 	@Bean
 	CorsConfigurationSource corsConfigurationSource() {
 	    CorsConfiguration configuration = new CorsConfiguration();
-	    configuration.addAllowedOrigin("http://localhost:5173");  // React URL
-	    configuration.addAllowedMethod("*");  // Allows all methods (GET, POST, etc.)
-	    configuration.addAllowedHeader("*");  // Allows all headers
-	    configuration.setAllowCredentials(true);  // Necessary to allow sending cookies
-	    configuration.addExposedHeader("Authorization"); // Expose the Authorization header (if needed)
-	    configuration.addExposedHeader("Set-Cookie");  // Expose the Set-Cookie header (to see session cookies)
+	    configuration.addAllowedOrigin("http://localhost:5173");
+	    configuration.addAllowedMethod("*");  
+	    configuration.addAllowedHeader("*");  
+	    configuration.setAllowCredentials(true); 
 	    UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
 	    source.registerCorsConfiguration("/**", configuration);
 	    return source;

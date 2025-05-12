@@ -1,5 +1,7 @@
 package com.htc.licenseapproval.mapper;
 
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -21,6 +23,7 @@ import com.htc.licenseapproval.entity.LicenseDetails;
 import com.htc.licenseapproval.entity.RequestDetails;
 import com.htc.licenseapproval.entity.RequestHeader;
 import com.htc.licenseapproval.entity.UploadedFile;
+import com.htc.licenseapproval.utils.DateFormatter;
 
 @Service
 public class MapperService {
@@ -32,12 +35,13 @@ public class MapperService {
 
 		RequestResponseDTO requestResponseDTO = modelMapper.map(requestList, RequestResponseDTO.class);
 
+		if(requestList.getApprovalMail() !=null) {
 		DownloadResponse downloadResponse = new DownloadResponse();
 		downloadResponse.setFilename(requestList.getApprovalMail().getFileName());
 		downloadResponse
 				.setUrl("/licenseApproval/approvalRequest/download/approvalMail/" + requestList.getRequestHeaderId());
 		requestResponseDTO.setApprovalMail(downloadResponse);
-
+		}
 		if (requestList.getExcelFile() != null) {
 			DownloadResponse downloadResponse2 = new DownloadResponse();
 			downloadResponse2.setFilename(requestList.getExcelFile().getFileName());
@@ -108,7 +112,11 @@ public class MapperService {
 	}
 
 	public RequestHeader toRequestList(NewRequestListDTO requestList) {
-		return modelMapper.map(requestList, RequestHeader.class);
+		LocalDate lacalDate = LocalDate.parse(requestList.getLicenseRequiredDate());
+		LocalDateTime date = DateFormatter.normaliseDate(lacalDate.atStartOfDay());
+		RequestHeader header = modelMapper.map(requestList, RequestHeader.class);
+		header.setLicenseRequiredDate(date);
+		return header;
 	}
 
 	public RequestResponseDTO toResponse(NewRequestListDTO requestList) {

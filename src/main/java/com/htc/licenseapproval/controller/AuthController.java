@@ -14,8 +14,6 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.core.userdetails.UserDetails;
-import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -26,6 +24,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.htc.licenseapproval.config.JwtConstants;
+import com.htc.licenseapproval.config.JwtService;
 import com.htc.licenseapproval.constants.LogMessages;
 import com.htc.licenseapproval.dto.LoginRequest;
 import com.htc.licenseapproval.dto.RegisterUser;
@@ -45,10 +45,8 @@ import com.htc.licenseapproval.utils.OTPservice;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.mail.MessagingException;
-import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import jakarta.servlet.http.HttpSession;
 import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
 
@@ -61,6 +59,9 @@ public class AuthController {
 
 	@Autowired
 	private UserService userService;
+	
+	@Autowired
+	private JwtService jwtService;
 
 	@Autowired
 	private LogRepository logRepository;
@@ -77,7 +78,6 @@ public class AuthController {
 	@Autowired
 	private UserCredentialsRepository userCredentialsRepository;
 
-
 	@Autowired
 	private OTPrepository otpRepository;
 
@@ -85,7 +85,6 @@ public class AuthController {
 	@Operation(summary = "Register user", description = "To register new user")
 	public ResponseEntity<BaseResponse<String>> registerUser( @Valid @RequestBody RegisterUser registerUser) {
 		
-
 		UserCredentials userCredentials = new UserCredentials();
 		userCredentials.setUsername(registerUser.getUsername());
 		userCredentials.setPassword(registerUser.getPassword());
@@ -161,15 +160,11 @@ public class AuthController {
 		
 			UserCredentials user = userService.findByUsername(username);
 	
-			authenticate(username, loginRequest.getPassword());
+			String token =authenticateUser(username, loginRequest.getPassword());
 
-			
 			if (!user.isOTPenabled()) {
 				
 				OTP otp = otpService.generateOTP(user);
-				
-			  
-				
 			    emailService.sendVerficationOtpEmail(user.getEmail(), otp.getOtp(),user.getUsername(),OTPtype.LOGIN);
 			    otpRepository.save(otp);
 			    user.setOTPenabled(true);
@@ -180,13 +175,10 @@ public class AuthController {
 						.build();
 				
 				logRepository.save(userLog);
-				
-				log.info("Logged successfully as username : " + username);
-				
 				BaseResponse<String> response = new BaseResponse<>();
 				response.setCode(HttpStatus.OK.value());
-				response.setData("OTP send to your registered mail : " +user.getEmail());
-				response.setMessage("Login");
+				response.setData(token);
+				response.setMessage("Login OTP send to your registered mail : "+user.getEmail());
 				
 				
 				return ResponseEntity.ok(response);
@@ -196,25 +188,22 @@ public class AuthController {
 			BaseResponse<String> response = new BaseResponse<>();
 			response.setCode(HttpStatus.ALREADY_REPORTED.value());
 			response.setData("Use the previous OTP sent through the email within 2 mins");
-			response.setMessage("Login");
-			
-			
+			response.setMessage("Login");			
 			return ResponseEntity.status(HttpStatus.ALREADY_REPORTED).body(response);
-
-
+			
 		} catch( MessagingException |  MailException e) {
 			
+			log.error("Login failed for username: {}", loginRequest.getUsername(), e);
 			BaseResponse<String> response = new BaseResponse<>();
-			response.setCode(HttpStatus.BAD_REQUEST.value());
+			response.setCode(HttpStatus.INTERNAL_SERVER_ERROR.value());
 			response.setData(e.getMessage());
 			response.setMessage("Login");
-			return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
+			return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
 		}
 		
-		
-				
-		catch (AuthenticationException e) {
-			
+	      catch (AuthenticationException e) {
+	    	  
+			log.error("Login failed for username: {}", loginRequest.getUsername(), e);
 			BaseResponse<String> response = new BaseResponse<>();
 			response.setCode(HttpStatus.UNAUTHORIZED.value());
 			response.setData("Invalid credentials");
@@ -229,32 +218,17 @@ public class AuthController {
 			HttpServletRequest request,	HttpServletResponse httpresponse) {
 		UserCredentials userCredentials = userService.findByUsername(username);
 		if (otpService.validateOTP(OTP, username) && userCredentials.isOTPenabled()) {
-			UserDetails userDetails = userService.loadUserByUsername(username);
-			UsernamePasswordAuthenticationToken authenticationToken = new UsernamePasswordAuthenticationToken(
-					userDetails, null, userDetails.getAuthorities());
-			authenticationToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
-			SecurityContextHolder.getContext().setAuthentication(authenticationToken);
 			
-			request.getSession(true).setAttribute("SPRING_SECURITY_CONTEXT", SecurityContextHolder.getContext());
-			request.getSession(true).setMaxInactiveInterval(30*60);
 			UserLog userLog = UserLog.builder ()
 					.logDetails(String.format(LogMessages.OTP_VERIFIED, userCredentials.getEmail()))
 					.loggedTime(LocalDateTime.now())
 					.build();
 			logRepository.save(userLog);
-			otpService.removeOtp(username);
-			
-			Cookie cookie = new Cookie("Session-Id",request.getSession().getId());
-			cookie.setHttpOnly(true); // MUST be false if you want JS access (default is true)
-			cookie.setPath("/");
-			cookie.setSecure(false); // only if you're using HTTPS
-			cookie.setMaxAge(30 * 60); // optional
-			httpresponse.addCookie(cookie);
-			
+			otpService.removeOtp(username);		
 			log.info("OTP verified successfully");
 			BaseResponse<String> response = new BaseResponse<>();
 			response.setCode(HttpStatus.ACCEPTED.value());
-			response.setData(request.getSession().getId());
+			response.setData("Jwt token :" +jwtExtractor(request));
 			response.setMessage("Login otp verification -> successful");
 			
 			return ResponseEntity.status(HttpStatus.ACCEPTED).body(response);
@@ -347,28 +321,13 @@ public class AuthController {
 	}
 
 	@PostMapping("/logout")
-	public ResponseEntity<BaseResponse<String>> logout(HttpServletRequest request, HttpServletResponse httpresponse) {
+	public ResponseEntity<BaseResponse<String>> logout(HttpServletRequest request) {   
+			
+		String token =jwtExtractor(request);
 		
-		String username = SecurityContextHolder.getContext().getAuthentication().getName();
-		
-		HttpSession session = request.getSession(false);
-		Cookie[] cookies = request.getCookies();
-		if (cookies != null) {
-		    for (Cookie cook : cookies) {
-		        if ("Session-Id".equals(cook.getName()) || "JSESSIONID".equals(cook.getName()) ) {
-		            cook.setValue(null);
-		            cook.setMaxAge(0);
-		            cook.setPath("/");
-		            httpresponse.addCookie(cook);
-		        }
-		    }
-		}
-		
-		if (session != null) {
-			session.invalidate();
-		}
-		SecurityContextHolder.clearContext();
-		
+		jwtService.invalidateToken(token);
+		 String username = SecurityContextHolder.getContext().getAuthentication().getName();
+		 SecurityContextHolder.clearContext();
 		UserLog userLog = UserLog.builder()
 				.logDetails(String.format(LogMessages.USER_LOGGEDOUT, username))
 				.loggedTime(LocalDateTime.now())
@@ -384,13 +343,23 @@ public class AuthController {
 		return ResponseEntity.status(HttpStatus.ACCEPTED).body(response);
 	}
 	
-	@GetMapping("/{username}")
-	public UserCredentials crdd(@PathVariable String username) {
-		return userService.findByUsername(username);
+	private String authenticateUser(String userName, String password) {
+			log.info("User login attempt for username : {}", userName);
+			Authentication authentication = authenticationManager.authenticate(
+					new UsernamePasswordAuthenticationToken(userName, password));
+			String jwtToken = jwtService.generateToken(authentication.getName());
+			log.info("User login validation successfully for username: {}", userName);
+			return jwtToken;
 	}
-
-	private Authentication authenticate(String userName, String password) {
-		return authenticationManager.authenticate(new UsernamePasswordAuthenticationToken(userName, password));
+	
+	private String jwtExtractor(HttpServletRequest request) {
+		String authHeader = request.getHeader(JwtConstants.HEADER);
+		String token = null;
+		
+		if (authHeader != null && authHeader.startsWith(JwtConstants.HEADERSTARTS)) {
+			token = authHeader.substring(7);
+		}
+		return token;
 	}
 	
 	 @GetMapping("/page")

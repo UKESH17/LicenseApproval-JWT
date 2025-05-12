@@ -7,6 +7,7 @@ import java.util.Map;
 
 import org.springframework.web.bind.annotation.RequestParam;
 
+import com.htc.licenseapproval.dto.BUResponseDTO;
 import com.htc.licenseapproval.dto.LicenseApprovalDTO;
 import com.htc.licenseapproval.dto.NewRequestListDTO;
 import com.htc.licenseapproval.dto.RequestDetailsDTO;
@@ -22,7 +23,7 @@ public interface RequestHeaderService {
 	
 	public RequestHeader findById(String requestId);
 
-	public RequestResponseDTO newRequestHeader(NewRequestListDTO newRequestListDTO, UploadedFile approvalMail);
+	public RequestResponseDTO newRequestHeader(NewRequestListDTO newRequestListDTO);
 
 	public LicenseApprovalDTO requestApproval(String requestId, Status status);
 
@@ -58,11 +59,13 @@ public interface RequestHeaderService {
 	
 	public Map<Month, Map<String, List<RequestDetailsDTO>>> quarterlyReportPerBU(LicenseType licenseType);
 
-	public ResponseDTO<List<RequestResponseDTO>> totalRequestPerBU(String name, LicenseType licenseType);
+	public BUResponseDTO<List<RequestResponseDTO>> totalRequestPerBU(String name, LicenseType licenseType);
 	
-	public  Map<String, ResponseDTO<List<RequestResponseDTO>>> totalRequestForAllBUs(LicenseType licenseType);
+	public  Map<String, BUResponseDTO<List<RequestResponseDTO>>> totalRequestForAllBUs(LicenseType licenseType);
 
 	public ResponseDTO<List<RequestDetails>> allConsumedLicense(LicenseType licenseType);
+
+	Map<Month, List<RequestResponseDTO>> quarterlyReportperQuater(LicenseType licenseType, String quarter);
 	
 
 }

@@ -110,7 +110,7 @@ public class RequestDetailsServiceImplement implements RequestDetailsService {
 		RequestDetails request =requestDetailsRepository.save(requestDetails);
 	
 		licenseLogMessagesRepository.save(logMessages);
-		headerServiceImplement.updateLicenseStatus();
+		headerServiceImplement.statusUpdate(request,LocalDateTime.now());
 		return mapperService.toResponseDTO(request);
 	}
 
