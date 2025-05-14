@@ -136,9 +136,23 @@ public class RequestReportsController {
 
 	@Operation(summary = "quarterly Report per quarter (Q1, Q2, Q3, Q4)")
 	@GetMapping(value = "/report/quarterReport/perQuarter")
-	public ResponseEntity<Map<Month, List<RequestResponseDTO>>> quarterReportPerQuarter(
+	public ResponseEntity<Map<Month, Map<String, ResponseDTO<List<RequestDetailsDTO>>>>> quarterReportPerQuarter(
 			@RequestParam LicenseType licenseType, @RequestParam String quarter) {
-		return ResponseEntity.ok(requestListService.quarterlyReportperQuater(licenseType, quarter));
+		
+		Map<Month, Map<String, ResponseDTO<List<RequestDetailsDTO>>>> map1 = new EnumMap<>(Month.class);
+		Map<Month, Map<String, List<RequestDetailsDTO>>> report = requestListService.quarterlyReportperQuater(licenseType, quarter);
+		for (Month key : report.keySet()) {
+			Map<String, ResponseDTO<List<RequestDetailsDTO>>> newMap = new HashMap<>();
+			for (String bu : report.get(key).keySet()) {
+				ResponseDTO<List<RequestDetailsDTO>> responseDTO = new ResponseDTO<>();
+				responseDTO.setData(report.get(key).get(bu));
+				responseDTO.setCount(report.get(key).get(bu).size());
+				newMap.put(bu, responseDTO);
+			}
+			map1.put(key, newMap);
+		}
+		
+		return ResponseEntity.ok(map1);
 	}
 
 	@Operation(summary = "Get quarterly report", description = "Returns license request count per quarter")

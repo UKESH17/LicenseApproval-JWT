@@ -60,14 +60,8 @@ public class MapperService {
 	}
 
 	public RequestDetailsDTO toRequestDetailsDTO(RequestDetails requestList) {
-		
-//		RequestHeader requestHeader = requestList.getRequestHeader();
+
 		RequestDetailsDTO detailsDTO = modelMapper.map(requestList, RequestDetailsDTO.class);
-//		detailsDTO.setRequestHeaderId(requestHeader.getRequestHeaderId());
-//		detailsDTO.setRequestorName(requestHeader.getRequestorName());
-//		detailsDTO.setRequestType(requestHeader.getRequestType());
-//		detailsDTO.setApprovedBy(requestHeader.getApprovedBy());
-//		detailsDTO.setBuDetails(this.toBUdetailsDTO(requestHeader.getBuDetails()));
 		if (requestList.getCourses() != null) {
 			Set<CoursesDTO> coursesDTOs = requestList.getCourses().stream().map(this::toCourseDTO)
 					.collect(Collectors.toSet());

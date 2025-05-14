@@ -65,7 +65,7 @@ public interface RequestHeaderService {
 
 	public ResponseDTO<List<RequestDetails>> allConsumedLicense(LicenseType licenseType);
 
-	Map<Month, List<RequestResponseDTO>> quarterlyReportperQuater(LicenseType licenseType, String quarter);
+	public Map<Month, Map<String, List<RequestDetailsDTO>>> quarterlyReportperQuater(LicenseType licenseType, String quarter);
 	
 
 }

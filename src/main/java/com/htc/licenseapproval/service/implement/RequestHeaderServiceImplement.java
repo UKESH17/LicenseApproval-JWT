@@ -85,7 +85,6 @@ public class RequestHeaderServiceImplement implements RequestHeaderService {
 		BUdetails budetails = bUdetailsRepository.findByBu(newRequestListDTO.getBuDetails().getBu())
 				.orElseThrow(() -> new RuntimeException("BU not found"));
 
-
 		if (newRequestListDTO.getExcelFile() != null) {
 			requestHeader.setExcelFile(newRequestListDTO.getExcelFile());
 		}
@@ -152,7 +151,7 @@ public class RequestHeaderServiceImplement implements RequestHeaderService {
 					LocalDateTime end = start.plusMonths(1);
 					licenseDetails.setLicenseStartedDate(start);
 					licenseDetails.setLicenseExpireDate(end);
-					licenseDetailSet.add(licenseDetails); 
+					licenseDetailSet.add(licenseDetails);
 
 					requestDetails.setApprovalGivenBy(username);
 					requestDetails.setLicenseDetails(licenseDetails);
@@ -299,17 +298,14 @@ public class RequestHeaderServiceImplement implements RequestHeaderService {
 	}
 
 	private float findTotalhoursSpentPerBU(List<RequestResponseDTO> list) {
-		
-		float totalhrs =(float)list.parallelStream()
-		.flatMap((request)-> request.getRequestDetails().stream())
-	    .filter(t ->t.getCourses()!=null)
-	    .flatMap(t -> t.getCourses().stream())
-	    .mapToDouble(value ->value.getHoursSpent())
-	    .sum();
-		
+
+		float totalhrs = (float) list.parallelStream().flatMap((request) -> request.getRequestDetails().stream())
+				.filter(t -> t.getCourses() != null).flatMap(t -> t.getCourses().stream())
+				.mapToDouble(value -> value.getHoursSpent()).sum();
+
 		return totalhrs;
 	}
-	
+
 	@Override
 	public ResponseDTO<List<RequestResponseDTO>> totalRequest() {
 		ResponseDTO<List<RequestResponseDTO>> response = new ResponseDTO<>();
@@ -321,6 +317,7 @@ public class RequestHeaderServiceImplement implements RequestHeaderService {
 		return response;
 
 	}
+
 	// unused
 	@Override
 	public List<RequestDetails> getAllRequestLists() {
@@ -339,7 +336,7 @@ public class RequestHeaderServiceImplement implements RequestHeaderService {
 		response.setCount(list.size());
 		return response;
 
-	} 
+	}
 
 	/* LICENSE AND REQUEST STAUS METHOD */
 
@@ -347,13 +344,13 @@ public class RequestHeaderServiceImplement implements RequestHeaderService {
 	public ResponseDTO<List<RequestDetails>> allConsumedLicense(LicenseType licenseType) {
 
 		List<RequestDetails> list = this.getAllRequestLists().stream()
-				.filter(t -> !t.getLicenseDetails().getLicenceStatus().equals(LicenceStatus.PENDING) 
-						&& !t.getLicenseDetails().getLicenceStatus().equals(LicenceStatus.EXPIRED) 
+				.filter(t -> !t.getLicenseDetails().getLicenceStatus().equals(LicenceStatus.PENDING)
+						&& !t.getLicenseDetails().getLicenceStatus().equals(LicenceStatus.EXPIRED)
 						&& t.getLicenseDetails().getLicenseType().equals(licenseType))
 				.collect(Collectors.toList());
 		ResponseDTO<List<RequestDetails>> response = new ResponseDTO<>();
 		response.setData(list);
-		response.setCount(list.size()); 
+		response.setCount(list.size());
 		return response;
 
 	}
@@ -489,38 +486,6 @@ public class RequestHeaderServiceImplement implements RequestHeaderService {
 	}
 
 	@Override
-	public Map<Month, List<RequestResponseDTO>> quarterlyReportperQuater(LicenseType licenseType,String quarter) {
-	
-		List<RequestDetails> allActiveLicense = this.allConsumedLicense(licenseType).getData();
-		 Map<Month, List<RequestResponseDTO>> quarterlyReport  = new LinkedHashMap<>();
-		 Map<String, List<Month>> quarterMap = Map.of(
-			        "Q1", List.of(Month.JANUARY, Month.FEBRUARY, Month.MARCH),
-			        "Q2", List.of(Month.APRIL, Month.MAY, Month.JUNE),
-			        "Q3", List.of(Month.JULY, Month.AUGUST, Month.SEPTEMBER),
-			        "Q4", List.of(Month.OCTOBER, Month.NOVEMBER, Month.DECEMBER)
-			    );
-			    List<Month> selectedMonths = quarterMap.getOrDefault(quarter.toUpperCase(), new ArrayList<>());
-			  
-			    for (Month month : selectedMonths) {
-			        quarterlyReport.put(month, new ArrayList<>());
-			    }
-		for (RequestDetails request : allActiveLicense) {
-
-			Month monthKey = request.getLicenseDetails().getLicenseStartedDate().getMonth();
-
-			if (quarterlyReport.containsKey(monthKey)) {
-
-				List<RequestResponseDTO> list = quarterlyReport.get(monthKey);
-				list.add(mapperService.toResponseDTO(request));
-
-				quarterlyReport.put(monthKey, list);
-			}
-		}
-
-		return quarterlyReport;
-	}
-	
-	@Override
 	public Map<Month, List<RequestResponseDTO>> quarterlyReportBYBU(String BU, LicenseType licenseType) {
 		bUdetailsRepository.findByBu(BU).orElseThrow(() -> new RuntimeException("bu not found"));
 		Month present = LocalDateTime.now().getMonth();
@@ -626,44 +591,89 @@ public class RequestHeaderServiceImplement implements RequestHeaderService {
 
 	}
 
+	@Override
+	public Map<Month, Map<String, List<RequestDetailsDTO>>> quarterlyReportperQuater(LicenseType licenseType,
+			String quarter) {
+
+		List<RequestDetails> allActiveLicense = this.allConsumedLicense(licenseType).getData();
+		Map<Month, Map<String, List<RequestDetailsDTO>>> quarterlyReport = new LinkedHashMap<>();
+
+		Map<String, List<Month>> quarterMap = Map.of("Q1", List.of(Month.JANUARY, Month.FEBRUARY, Month.MARCH), "Q2",
+				List.of(Month.APRIL, Month.MAY, Month.JUNE), "Q3", List.of(Month.JULY, Month.AUGUST, Month.SEPTEMBER),
+				"Q4", List.of(Month.OCTOBER, Month.NOVEMBER, Month.DECEMBER));
+		List<Month> selectedMonths = quarterMap.getOrDefault(quarter.toUpperCase(), new ArrayList<>());
+
+		for (Month month : selectedMonths) {
+			Map<String, List<RequestDetailsDTO>> buMap = new HashMap<>();
+			for (BUdetails bu : bUdetailsRepository.findAll()) {
+				buMap.put(bu.getBu(), new ArrayList<>());
+			}
+			quarterlyReport.put(month, buMap);
+		}
+
+		for (RequestDetails request : allActiveLicense) {
+
+			Month monthKey = request.getLicenseDetails().getLicenseStartedDate().getMonth();
+
+			String bu = request.getRequestHeader().getBuDetails().getBu();
+
+			if (quarterlyReport.containsKey(monthKey)) {
+
+				Map<String, List<RequestDetailsDTO>> map = quarterlyReport.get(monthKey);
+
+				if (map.containsKey(bu)) {
+					List<RequestDetailsDTO> list = map.get(bu);
+
+					list.add(mapperService.toRequestDetailsDTO(request));
+
+					map.put(bu, list);
+				}
+				quarterlyReport.put(monthKey, map);
+
+			}
+
+		}
+
+		return quarterlyReport;
+	}
+
 	@Scheduled(fixedDelay = 43200000)
 	void updateLicenseStatus() {
-	    List<RequestDetails> activeLicenses = this.allConsumed().getData();
+		List<RequestDetails> activeLicenses = this.allConsumed().getData();
 
-	    if (!activeLicenses.isEmpty()) {
-	        LocalDateTime now = LocalDateTime.now();
-	        activeLicenses.forEach(license -> {
-	           statusUpdate(license, now);
-	        });
-	    }
+		if (!activeLicenses.isEmpty()) {
+			LocalDateTime now = LocalDateTime.now();
+			activeLicenses.forEach(license -> {
+				statusUpdate(license, now);
+			});
+		}
 	}
-	
+
 	void statusUpdate(RequestDetails license, LocalDateTime now) {
-	    try {
-	        LocalDateTime expiryDate = license.getLicenseDetails().getLicenseExpireDate();
-	        LicenceStatus currentStatus = license.getLicenseDetails().getLicenceStatus();
-	        LicenceStatus newStatus = currentStatus;
+		try {
+			LocalDateTime expiryDate = license.getLicenseDetails().getLicenseExpireDate();
+			LicenceStatus currentStatus = license.getLicenseDetails().getLicenceStatus();
+			LicenceStatus newStatus = currentStatus;
 
-	        long daysRemaining = ChronoUnit.DAYS.between(now, expiryDate);
+			long daysRemaining = ChronoUnit.DAYS.between(now, expiryDate);
 
-	        if (daysRemaining < 0 && currentStatus != LicenceStatus.EXPIRED) {
-	            newStatus = LicenceStatus.EXPIRED;
-	        } else if (daysRemaining <= 5 && currentStatus == LicenceStatus.ACTIVE) {
-	            newStatus = LicenceStatus.EXPIRING_SOON;
-	        } else if (daysRemaining > 5 && currentStatus != LicenceStatus.ACTIVE) {
-	            newStatus = LicenceStatus.ACTIVE;
-	        }
+			if (daysRemaining < 0 && currentStatus != LicenceStatus.EXPIRED) {
+				newStatus = LicenceStatus.EXPIRED;
+			} else if (daysRemaining <= 5 && currentStatus == LicenceStatus.ACTIVE) {
+				newStatus = LicenceStatus.EXPIRING_SOON;
+			} else if (daysRemaining > 5 && currentStatus != LicenceStatus.ACTIVE) {
+				newStatus = LicenceStatus.ACTIVE;
+			}
 
-	        if (!newStatus.equals(currentStatus)) {
-	            license.getLicenseDetails().setLicenceStatus(newStatus);
-	            log.info("License status changed from {} to {}", currentStatus, newStatus);
-	            requestDetailsRepository.save(license);
-	        }
+			if (!newStatus.equals(currentStatus)) {
+				license.getLicenseDetails().setLicenceStatus(newStatus);
+				log.info("License status changed from {} to {}", currentStatus, newStatus);
+				requestDetailsRepository.save(license);
+			}
 
-	    } catch (Exception e) {
-	        log.error("Error updating license ID {}: {}", license.getRequestId(), e.getMessage());
-	    }
+		} catch (Exception e) {
+			log.error("Error updating license ID {}: {}", license.getRequestId(), e.getMessage());
+		}
 	}
-
 
 }
