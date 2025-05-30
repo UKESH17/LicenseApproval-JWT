@@ -160,9 +160,7 @@ public class AuthController {
 		
 			UserCredentials user = userService.findByUsername(username);
 	
-			String token =authenticateUser(username, loginRequest.getPassword());
-
-			if (!user.isOTPenabled()) {
+			if (!user.isOTPenabled() && authenticateUser(username, loginRequest.getPassword())) {
 				
 				OTP otp = otpService.generateOTP(user);
 			    emailService.sendVerficationOtpEmail(user.getEmail(), otp.getOtp(),user.getUsername(),OTPtype.LOGIN);
@@ -177,7 +175,7 @@ public class AuthController {
 				logRepository.save(userLog);
 				BaseResponse<String> response = new BaseResponse<>();
 				response.setCode(HttpStatus.OK.value());
-				response.setData(token);
+				response.setData("Authentication successfull");
 				response.setMessage("Login OTP send to your registered mail : "+user.getEmail());
 				
 				
@@ -225,10 +223,11 @@ public class AuthController {
 					.build();
 			logRepository.save(userLog);
 			otpService.removeOtp(username);		
+			String jwt = jwtService.generateToken(username);
 			log.info("OTP verified successfully");
 			BaseResponse<String> response = new BaseResponse<>();
 			response.setCode(HttpStatus.ACCEPTED.value());
-			response.setData("Jwt token :" +jwtExtractor(request));
+			response.setData("Jwt token :" +jwt);
 			response.setMessage("Login otp verification -> successful");
 			
 			return ResponseEntity.status(HttpStatus.ACCEPTED).body(response);
@@ -343,13 +342,12 @@ public class AuthController {
 		return ResponseEntity.status(HttpStatus.ACCEPTED).body(response);
 	}
 	
-	private String authenticateUser(String userName, String password) {
+	private boolean authenticateUser(String userName, String password) {
 			log.info("User login attempt for username : {}", userName);
 			Authentication authentication = authenticationManager.authenticate(
 					new UsernamePasswordAuthenticationToken(userName, password));
-			String jwtToken = jwtService.generateToken(authentication.getName());
 			log.info("User login validation successfully for username: {}", userName);
-			return jwtToken;
+			return authentication.isAuthenticated();
 	}
 	
 	private String jwtExtractor(HttpServletRequest request) {
@@ -366,10 +364,10 @@ public class AuthController {
 	    public Page<UserCredentials> getUsers(
 	        @RequestParam(defaultValue = "0") int page,
 	        @RequestParam(defaultValue = "2") int size,
-	        @RequestParam(defaultValue = "id") String sortBy
+	        @RequestParam(defaultValue = "username") String sortBy
 	    ) {
 	        PageRequest pageable = PageRequest.of(page, size, Sort.by(sortBy));
 	        return userCredentialsRepository.findAll(pageable);
 	    }
-
+ 
 }

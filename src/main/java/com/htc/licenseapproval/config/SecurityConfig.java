@@ -56,9 +56,10 @@ public class SecurityConfig {
 	            	"/auth/registerUser",
 	                "/auth/login",
 	                "/auth/forgotpassword",
-	                "/auth/changePassword/**"               
+	                "/auth/changePassword/**",
+	                "/auth/login/otpVerification" 	          
 	            ).permitAll()
-	            .requestMatchers("/auth/deleteUser","/auth/login/otpVerification", "/auth/logout").authenticated()
+	            .requestMatchers("/auth/deleteUser", "/auth/logout").authenticated()
 	            .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
 	            .anyRequest().permitAll()
 	        )
